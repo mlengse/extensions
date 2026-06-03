@@ -1,0 +1,25 @@
+-DATASET CSV empty
+-BUFFER_POOL_SIZE 1024000000
+
+--
+
+-CASE GremlinOutOutValues
+
+-LOAD_DYNAMIC_EXTENSION gremlin
+
+-STATEMENT CREATE NODE TABLE person(id INT64, name STRING, PRIMARY KEY(id));
+---- ok
+
+-STATEMENT CREATE REL TABLE knows(FROM person TO person);
+---- ok
+
+-STATEMENT CREATE (:person {id: 0, name: "gremlin"}), (:person {id: 1, name: "marko"}), (:person {id: 2, name: "lop"}), (:person {id: 3, name: "josh"});
+---- ok
+
+-STATEMENT MATCH (a:person {id: 0}), (b:person {id: 1}), (c:person {id: 2}), (d:person {id: 3}) CREATE (a)-[:knows]->(b), (b)-[:knows]->(c), (b)-[:knows]->(d);
+---- ok
+
+-STATEMENT CALL GREMLIN("g.V().has('name','gremlin').out('knows').out('knows').values('name')");
+---- 2
+josh
+lop
