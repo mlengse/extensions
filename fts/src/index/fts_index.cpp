@@ -224,7 +224,8 @@ void FTSIndex::finalize(main::ClientContext* context) {
     ftsStorageInfo.numCheckpointedNodes = numTotalRows;
 }
 
-void FTSIndex::checkpoint(main::ClientContext* context, storage::PageAllocator& pageAllocator) {
+void FTSIndex::checkpoint(main::ClientContext* context, storage::PageAllocator& pageAllocator,
+    storage::ShadowFile&) {
     DASSERT(!context->isInMemory());
     auto catalog = catalog::Catalog::Get(*context);
     internalTableInfo.docTable->checkpoint(context,
