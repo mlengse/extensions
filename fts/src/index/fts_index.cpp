@@ -237,7 +237,7 @@ void FTSIndex::finalize(main::ClientContext* context) {
 }
 
 void FTSIndex::checkpoint(main::ClientContext* context, storage::PageAllocator& pageAllocator,
-    storage::ShadowFile& shadowFile) {
+    [[maybe_unused]] storage::ShadowFile& shadowFile) {
     DASSERT(!context->isInMemory());
     auto catalog = catalog::Catalog::Get(*context);
     internalTableInfo.docTable->checkpoint(context,
