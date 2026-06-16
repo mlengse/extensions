@@ -112,39 +112,29 @@ DocInfo::DocInfo(Transaction* transaction, FTSConfig& config, NodeTable* stopWor
 void FTSIndex::insert(Transaction* transaction, const ValueVector& nodeIDVector,
     const std::vector<ValueVector*>& indexVectors, InsertState& insertState) {
     auto totalInsertedDocLen = 0u;
-    auto numActuallyInsertedDocs = 0u;
     auto& ftsInsertState = insertState.cast<FTSInsertState>();
     for (auto i = 0u; i < nodeIDVector.state->getSelSize(); i++) {
         auto pos = nodeIDVector.state->getSelVector()[i];
         DocInfo docInfo{transaction, config, internalTableInfo.stopWordsTable, indexVectors, pos,
             ftsInsertState.updateVectors.mm};
         if (docInfo.termInfos.size() == 0) {
-            // skip empty documents but continue processing remaining rows
-            continue;
+            break;
         }
-        auto originalNodeID = nodeIDVector.getValue<nodeID_t>(pos);
-        auto insertedDocID = insertToDocTable(transaction, ftsInsertState, originalNodeID,
-            docInfo.docLen);
+        auto insertedDocID = insertToDocTable(transaction, ftsInsertState,
+            nodeIDVector.getValue<nodeID_t>(pos), docInfo.docLen);
         totalInsertedDocLen += docInfo.docLen;
-        numActuallyInsertedDocs++;
         insertToTermsTable(transaction, docInfo.termInfos, ftsInsertState);
         insertToAppearsInTable(transaction, docInfo.termInfos, ftsInsertState, insertedDocID,
             internalTableInfo.termsTable->getTableID());
-        // update checkpointed nodes to reflect progress
-        auto& ftsStorageInfo = storageInfo->cast<FTSStorageInfo>();
-        auto candidate = originalNodeID.offset + 1;
-        if (ftsStorageInfo.numCheckpointedNodes < candidate) {
-            ftsStorageInfo.numCheckpointedNodes = candidate;
-        }
     }
     auto& ftsStorageInfo = storageInfo->cast<FTSStorageInfo>();
-    auto numInsertedDocs = numActuallyInsertedDocs;
-    if (numInsertedDocs > 0) {
-        ftsStorageInfo.avgDocLen =
-            (ftsStorageInfo.avgDocLen * ftsStorageInfo.numDocs + totalInsertedDocLen) /
-            (ftsStorageInfo.numDocs + numInsertedDocs);
-    }
+    auto numInsertedDocs = nodeIDVector.state->getSelSize();
+    ftsStorageInfo.avgDocLen =
+        (ftsStorageInfo.avgDocLen * ftsStorageInfo.numDocs + totalInsertedDocLen) /
+        (ftsStorageInfo.numDocs + numInsertedDocs);
     ftsStorageInfo.numDocs += numInsertedDocs;
+    ftsStorageInfo.numCheckpointedNodes =
+        nodeIDVector.getValue<nodeID_t>(nodeIDVector.state->getSelVector()[0]).offset + 1;
 }
 
 std::unique_ptr<Index::UpdateState> FTSIndex::initUpdateState(main::ClientContext* context,
